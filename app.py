@@ -59,3 +59,34 @@ def create_issue():
 # This runs the app
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+# ... (your get_issues function is above this) ...
+
+    # This endpoint updates a single issue (e.g., changes its status)
+    @app.route('/api/issue/<int:issue_id>', methods=['PUT'])
+    def update_issue(issue_id):
+        try:
+            # 1. Get the new data from the request
+            data = request.get_json()
+            new_status = data.get('status')
+            # You could also get 'assigned_to', etc. here in the future
+            
+            # 2. Prepare the data to update
+            update_data = {
+                "status": new_status
+            }
+            
+            # 3. Update the 'issues' table where the 'id' matches
+            response = supabase.table('issues') \
+                             .update(update_data) \
+                             .eq('id', issue_id) \
+                             .execute()
+            
+            # 4. Return the updated issue data
+            updated_issue = response.data[0]
+            return jsonify(updated_issue), 200
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # ... (your if __name__ == '__main__': is below this) ...
