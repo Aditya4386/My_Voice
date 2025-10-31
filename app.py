@@ -24,25 +24,37 @@ def get_category_from_image(media_url):
     try:
         # Load model inside the function to save memory
         yolo_model = YOLO('yolov8n.pt') 
+
         response = requests.get(media_url)
-        img = Image.open(io.BytesIO(response.content))
-        
-        results = yolo_model.predict(img)
-        
+
+        # --- THIS IS THE NEW, MORE RELIABLE CODE ---
+        # Create a temporary file to save the image
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
+            temp_file.write(response.content)
+            temp_file_path = temp_file.name
+
+        # Run YOLO model on the saved image file
+        results = yolo_model.predict(temp_file_path)
+
+        # Delete the temporary file
+        os.remove(temp_file_path)
+        # --- END OF NEW CODE ---
+
+        # Get the top detection
         if results[0].names:
             top_result_index = results[0].probs.top1
             top_category = results[0].names[top_result_index]
-            
+
             # Simple mapping (you can expand this)
             if 'pothole' in top_category:
                 return 'Pothole'
             if 'person' in top_category:
                 return 'Social Issue'
-            
+
             return top_category
-        
+
         return "Uncategorized Image"
-        
+
     except Exception as e:
         print(f"Error processing image: {e}")
         return "Uncategorized"
