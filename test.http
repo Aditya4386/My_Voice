@@ -1,0 +1,11 @@
+### Test create issue with image
+POST https://myvoice-2z9s.onrender.com/api/issue
+Content-Type: application/json
+
+{
+    "description_text": "Test pothole 3 (final test)",
+    "lat": 12.34,
+    "lng": 56.78,
+    "media_url": "https://i.imgur.com/g0P1g6G.png",
+    "media_type": "image"
+}

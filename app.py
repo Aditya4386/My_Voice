@@ -22,23 +22,14 @@ load_dotenv()
 def get_category_from_image(media_url):
     """Downloads an image, runs YOLO on it, and returns a category."""
     try:
-        # Load model inside the function to save memory
+        # <-- FIX: Load model inside the function
         yolo_model = YOLO('yolov8n.pt') 
 
-        response = requests.get(media_url)
-
-        # --- THIS IS THE NEW, MORE RELIABLE CODE ---
-        # Create a temporary file to save the image
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
-            temp_file.write(response.content)
-            temp_file_path = temp_file.name
-
-        # Run YOLO model on the saved image file
-        results = yolo_model.predict(temp_file_path)
-
-        # Delete the temporary file
-        os.remove(temp_file_path)
-        # --- END OF NEW CODE ---
+        # --- NEW SIMPLER CODE ---
+        # Pass the URL DIRECTLY to the predict function.
+        # The AI will handle the download and opening.
+        results = yolo_model.predict(media_url)
+        # --- END NEW CODE ---
 
         # Get the top detection
         if results[0].names:
@@ -58,6 +49,7 @@ def get_category_from_image(media_url):
     except Exception as e:
         print(f"Error processing image: {e}")
         return "Uncategorized"
+    
 
 def get_text_from_audio(media_url):
     """Downloads an audio/video file, runs Whisper, and returns the text."""
