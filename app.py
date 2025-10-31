@@ -22,30 +22,39 @@ load_dotenv()
 def get_category_from_image(media_url):
     """Downloads an image, runs YOLO on it, and returns a category."""
     try:
-        # <-- FIX: Load model inside the function
+        # Load model inside the function to save memory
         yolo_model = YOLO('yolov8n.pt') 
-
-        # --- NEW SIMPLER CODE ---
-        # Pass the URL DIRECTLY to the predict function.
-        # The AI will handle the download and opening.
-        results = yolo_model.predict(media_url)
-        # --- END NEW CODE ---
-
+        
+        # --- THIS IS THE FINAL FIX: Use tempfile to download reliably ---
+        response = requests.get(media_url)
+        
+        # Create a temporary file to save the image
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
+            temp_file.write(response.content)
+            temp_file_path = temp_file.name
+        
+        # Run YOLO model on the saved image file
+        results = yolo_model.predict(temp_file_path)
+        
+        # Delete the temporary file
+        os.remove(temp_file_path)
+        # --- END OF FIX ---
+        
         # Get the top detection
         if results[0].names:
             top_result_index = results[0].probs.top1
             top_category = results[0].names[top_result_index]
-
+            
             # Simple mapping (you can expand this)
             if 'pothole' in top_category:
                 return 'Pothole'
             if 'person' in top_category:
                 return 'Social Issue'
-
+            
             return top_category
-
+        
         return "Uncategorized Image"
-
+        
     except Exception as e:
         print(f"Error processing image: {e}")
         return "Uncategorized"
@@ -115,7 +124,7 @@ def create_issue():
         media_type = data.get('media_type')
         description_text = data.get('description_text', '')
         
-        ai_category = "Uncategorized"
+        ai_category = "UncategorZized"
         ai_transcription = ""
 
         # --- AI PROCESSING ---

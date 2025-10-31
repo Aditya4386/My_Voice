@@ -6,7 +6,8 @@ services:
     buildConfig:
       buildCommand: "pip install -r requirements.txt"
 
-    startCommand: "gunicorn app:app"
+    # <-- THIS IS THE FINAL FIX: Makes the server wait 300 seconds
+    startCommand: "gunicorn --timeout 300 app:app"
 
     # This is the magic part!
     buildpacks:
