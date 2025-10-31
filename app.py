@@ -13,7 +13,7 @@ from PIL import Image
 from ultralytics import YOLO
 
 # Load your secret keys from the .env file
-# This MUST be at the top, before you use any os.environ.get()
+# This MUST be at the top
 load_dotenv()
 
 # --- AI Helper Functions ---
@@ -22,20 +22,18 @@ load_dotenv()
 def get_category_from_image(media_url):
     """Downloads an image, runs YOLO on it, and returns a category."""
     try:
-        # <-- FIX: Load model inside the function to save memory
+        # Load model inside the function to save memory
         yolo_model = YOLO('yolov8n.pt') 
         response = requests.get(media_url)
         img = Image.open(io.BytesIO(response.content))
         
-        # Run YOLO model on the image
         results = yolo_model.predict(img)
         
-        # Get the top detection
         if results[0].names:
             top_result_index = results[0].probs.top1
             top_category = results[0].names[top_result_index]
             
-            # Simple mapping from YOLO classes to your categories
+            # Simple mapping (you can expand this)
             if 'pothole' in top_category:
                 return 'Pothole'
             if 'person' in top_category:
@@ -52,20 +50,16 @@ def get_category_from_image(media_url):
 def get_text_from_audio(media_url):
     """Downloads an audio/video file, runs Whisper, and returns the text."""
     try:
-        # <-- FIX: Load model inside the function to save memory
+        # Load model inside the function to save memory
         whisper_model = whisper.load_model('tiny')
         response = requests.get(media_url)
         
-        # Create a temporary file to save the audio
         with tempfile.NamedTemporaryFile(delete=False, suffix='.tmp') as temp_file:
             temp_file.write(response.content)
             temp_file_path = temp_file.name
         
-        # Run Whisper to transcribe the audio file
         result = whisper_model.transcribe(temp_file_path)
-        
-        # Delete the temporary file
-        os.remove(temp_file_path)
+        os.remove(temp_file_path) # Clean up the temp file
         
         return result.get('text', '')
         
@@ -87,19 +81,16 @@ def get_category_from_text(text_description):
     return 'General Inquiry'
 
 # --- Flask App Setup ---
-
 app = Flask(__name__)
-CORS(app) # This allows anyone (your team) to call your API
+CORS(app) # Allows your team's apps to call your API
 
 # --- Supabase Connection ---
-# <-- FIX: This is the CORRECT way to read your .env file
-# Your .env file must contain your SUPABASE_URL and SECRET service_role KEY
+# This correctly reads the variables from your .env file
 url = os.environ.get("SUPABASE_URL")
 key = os.environ.get("SUPABASE_KEY")
 
 if not url or not key:
-    print("FATAL ERROR: SUPABASE_URL and SUPABASE_KEY not found in .env file")
-    # You might want to exit here in a real app
+    print("FATAL ERROR: SUPABASE_URL and SUPABASE_KEY not found in .env file or Environment Variables")
 
 supabase: Client = create_client(url, key)
 
@@ -108,11 +99,12 @@ supabase: Client = create_client(url, key)
 
 @app.route('/')
 def home():
+    """A test route to see if the server is running."""
     return "Python API for Smart City App is running!"
 
 @app.route('/api/issue', methods=['POST'])
 def create_issue():
-    """This endpoint creates a new issue (now with media)"""
+    """This endpoint creates a new issue (now with media and AI)."""
     try:
         data = request.get_json()
         media_url = data.get('media_url')
@@ -151,23 +143,24 @@ def create_issue():
         return jsonify(new_issue), 201
 
     except Exception as e:
+        print(f"Error creating issue: {e}")
         return jsonify({"error": str(e)}), 500
 
-# <-- FIX: Added the missing get_issues function
 @app.route('/api/issues', methods=['GET'])
 def get_issues():
-    """This endpoint gets all issues for the admin dashboard"""
+    """This endpoint gets all issues for the admin dashboard."""
     try:
         response = supabase.table('issues').select('*').order('created_at', desc=True).execute()
         issues = response.data
         return jsonify(issues), 200
 
     except Exception as e:
+        print(f"Error getting issues: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/issue/<int:issue_id>', methods=['PUT'])
 def update_issue(issue_id):
-    """This endpoint updates a single issue (e.g., status or assignment)"""
+    """This endpoint updates a single issue (e.g., status or assignment)."""
     try:
         data = request.get_json()
         update_data = {}
@@ -190,6 +183,7 @@ def update_issue(issue_id):
         return jsonify(updated_issue), 200
 
     except Exception as e:
+        print(f"Error updating issue: {e}")
         return jsonify({"error": str(e)}), 500
 
 # --- This runs the app locally ---
