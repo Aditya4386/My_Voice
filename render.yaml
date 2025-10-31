@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: MyVoice
+    env: python
+
+    buildConfig:
+      buildCommand: "pip install -r requirements.txt"
+
+    startCommand: "gunicorn app:app"
+
+    # This is the magic part!
+    buildpacks:
+      - url: heroku/python
+      - url: https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest
+
+    # This tells Render to use the same secret keys you already set in the UI
+    envVars:
+      - key: SUPABASE_URL
+        fromEnv: SUPABASE_URL
+      - key: SUPABASE_KEY
+        fromEnv: SUPABASE_KEY
+      - key: PYTHON_VERSION
+        value: 3.10.6
