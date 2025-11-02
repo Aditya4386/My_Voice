@@ -31,18 +31,16 @@ supabase: Client = create_client(url, key)
 
 
 # --- NEW: Authentication Helper ---
+# --- NEW: Authentication Helper (Self-Healing) ---
 def get_user_from_token():
     """Gets the user's info from the Authorization token."""
     try:
-        # The app (Person 2/3) must send a header like:
-        # "Authorization: Bearer [THEIR_TOKEN_FROM_SUPABASE_LOGIN]"
         auth_header = request.headers.get("Authorization")
         if not auth_header:
             return None, {"error": "Missing Authorization header"}, 401
 
         jwt_token = auth_header.split(" ")[1]
         
-        # We use Supabase to validate the token and get the user
         user_response = supabase.auth.get_user(jwt_token)
         user = user_response.user
         
@@ -50,15 +48,41 @@ def get_user_from_token():
             return None, {"error": "Invalid token"}, 401
             
         # Get the user's role from our 'profiles' table
-        profile_response = supabase.table('profiles').select('role').eq('id', user.id).single().execute()
-        role = profile_response.data.get('role', 'citizen')
+        profile_response = supabase.table('profiles').select('role').eq('id', user.id).execute()
+        
+        # --- THIS IS THE FIX ---
+        # Check if the user has a profile
+        if not profile_response.data:
+            # User exists in Auth, but not in profiles. Let's create it.
+            # This fixes the "0 rows" race condition.
+            
+            # Get the user's email from the auth user object
+            user_email = user.email
+            
+            # By default, all new auto-created profiles are 'citizen'
+            # (Admins must be set manually in the database)
+            new_profile_data = {
+                'id': user.id,
+                'email': user_email,
+                'role': 'citizen'
+            }
+            
+            insert_response = supabase.table('profiles').insert(new_profile_data).execute()
+            
+            # Now that the profile is created, set the role
+            role = 'citizen'
+            
+        else:
+            # Profile was found, get the role
+            role = profile_response.data[0].get('role', 'citizen')
+        # --- END OF FIX ---
 
         return user, role, None # user, role, no error
     
     except Exception as e:
         print(f"Auth error: {e}")
         return None, {"error": "Invalid token"}, 401
-
+    
 # --- AI Helper Functions ---
 # (These are the same as before, no changes needed)
 def get_category_from_image(media_url):
